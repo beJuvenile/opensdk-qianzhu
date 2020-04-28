@@ -8,8 +8,8 @@
  */
 namespace OpenSDK\QianZhu;
 
-use OpenSDK\ITaoKe\Libs\Http;
-use OpenSDK\ITaoKe\Interfaces\Request;
+use OpenSDK\QianZhu\Libs\Http;
+use OpenSDK\QianZhu\Interfaces\Request;
 
 class Client
 {
@@ -19,7 +19,7 @@ class Client
      *
      * @var string
      */
-    public $gatewayUrl = 'http://router.itaoke.org/api';
+    public $gatewayUrl;
 
     /**
      * AppKey
@@ -63,56 +63,39 @@ class Client
      */
     public $signMethod = 'md5';
 
-    /**
-     * apiVersion
-     *
-     * @var object
-     */
-    public $apiVersion = '1.0';
-
-    public $sdkVersion = 'top-sdk-php-20190618';
-
-    public function __construct($appKey='', $appSecret='')
+    public function __construct($appKey='', $appSecret='', $gatewayUrl='')
     {
         $this->appKey = $appKey;
         $this->appSecret = $appSecret;
+        $this->gatewayUrl = $gatewayUrl;
     }
     
     //执行
-    public function execute($request, $session = null){
-
+    public function execute(Request $request)
+    {
         $this->request = $request;
-        //组装系统参数
-        $sysParams["app_key"] = $this->appKey;
-        $sysParams["v"] = $this->apiVersion;
-        $sysParams["format"] = $this->format;
-        $sysParams["sign_method"] = $this->signMethod;
-        $sysParams["method"] = $request->getApiMethodName();
-        $sysParams["timestamp"] = time();
-//        $sysParams["domain"] = $_SERVER['SERVER_NAME'];
-//        $sysParams["client"] = $this->getip();
-        $sysParams["partner_id"] = $this->sdkVersion;
 
-//        if (null != $session){
-//            $sysParams["session"] = $session;
-//        }
+        // 系统级参数
+        $sysParams = [];
+
         //获取业务参数
         $apiParams = $request->getApiParas();
+        $apiParams["platformId"] = $this->appKey;
+        $apiParams["timestamp"] = time();
         //签名
-        $sysParams["sign"] = $this->generateSign(array_merge($apiParams, $sysParams));
+        $apiParams["sign"] = $this->generateSign($apiParams);
 
         //发起HTTP请求
         try{
             //系统参数放入GET请求串
-            $requestUrl = $this->gatewayUrl. "?";
-
+            $requestUrl = $this->gatewayUrl . $this->request->getApiMethodName() . ($sysParams ? '?' : '');
             foreach ($sysParams as $sysParamKey => $sysParamValue){
                 $requestUrl .= "$sysParamKey=" . urlencode($sysParamValue) . "&";
             }
-            $requestUrl = substr($requestUrl, 0, -1);
+            $requestUrl = rtrim($requestUrl, '&');
 
             if (strtolower($request->requestType)=='post') {
-                $resp = Http::post($requestUrl, $apiParams);
+                $resp = Http::post($requestUrl, $apiParams, [], $request->dataType);
             } else {
                 $resp = Http::get($requestUrl, $apiParams);
             }
@@ -123,29 +106,23 @@ class Client
                 $respObject = @simplexml_load_string($resp);
             }
             $this->result = $respObject;
-
         }catch (\Exception $e){
-
             $this->result = [];
-
         }
-
     }
 
     //生成签名
-    public function generateSign($params){
+    public function generateSign($params)
+    {
+        $appSecret = $this->appSecret;
         ksort($params);
-        $stringToBeSigned = $this->appSecret;
-        foreach ($params as $k => $v)
-        {
-            if("@" != substr($v, 0, 1))
-            {
-                $stringToBeSigned .= "$k$v";
-            }
+        $str = '';
+        foreach($params as $k=>$v){
+            $str .= $k.'='.$v.'&';
         }
-        unset($k, $v);
-        $stringToBeSigned .= $this->appSecret;
-        return strtoupper(md5($stringToBeSigned));
+        $str = rtrim($str,'&');
+        $sign = md5($str.$appSecret);
+        return $sign;
     }
 
     //获取真实ip

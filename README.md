@@ -8,18 +8,24 @@
 ~~~php
 require 'vendor/autoload.php';
 
-use OpenSDK\ITaoKe\Client;
-use OpenSDK\ITaoKe\Requests\DdkCmsPromUrlGenerateRequest;
+use OpenSDK\QianZhu\Client;
+use OpenSDK\QianZhu\Requests\KfcOrdersPagedQueryGetRequest;
 
 $c = new Client();
-$c->appKey = 'You are appKey';
-$c->appSecret = 'You are appSecret';
-$req = new DdkCmsPromUrlGenerateRequest();
-$req->setWeAppWebViewShortUrl(true);
-$req->setWeAppWebViewUrl(true);
-$req->setPidList(['xxxx_xxxxx']);
-$c->setRequest($req);
-$result = $c->execute();
+$c->appKey = $this->appKey;
+$c->appSecret = $this->appSecret;
+$c->gatewayUrl = $this->url;
+$req = new KfcOrdersPagedQueryGetRequest();
 
-var_dump($result);
+$req->setPageIndex(1);
+$req->setPageSize(10);
+$req->setUpdateTimeBeginTime("2020-04-20 00:00:00");
+$req->setUpdateTimeEndTime("2020-04-27 00:00:00");
+
+$c->execute($req);
+$response = $c->result();
+if(isset($response['status']) && $response['status'] == '0000'){
+
+}
+var_dump($response);exit;
 ~~~

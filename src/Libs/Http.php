@@ -37,7 +37,12 @@ class Http
 
             // 数据格式
             if ($dataType=='json') {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                $dataJson = json_encode($data);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $dataJson);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    'Content-Length: ' . strlen($dataJson)
+                    ]);
             } else {
                 if (is_array($data) && 0 < count($data)) {
                     $postBodyString = '';
@@ -50,7 +55,6 @@ class Http
             }
 
             $resp = curl_exec($ch);
-
             if (curl_errno($ch))
                 throw new \Exception(curl_error($ch),0);
 
